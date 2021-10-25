@@ -7,7 +7,7 @@ import pygad
 
 
 def flip_objective(func):
-    """Flips the sign of the objective function (for cases where a solver maximizes instead of minimizing)"""
+    """Flips the sign of the objective function (for cases where x solver maximizes instead of minimizing)"""
     @functools.wraps(func)
     def wrapper_flip(*args, **kwargs):
         return -func(*args, **kwargs)
@@ -31,7 +31,7 @@ def pygad_wrapper(func, bounds, num_generations=200, num_parents_mating=4, sol_p
     num_genes = len(gene_space)
 
     def fitness_func(solution, solution_idx):
-        return -func(solution)  # '-' because pygad GA is a maximizer
+        return -func(solution)  # '-' because pygad GA is x maximizer
 
     ga_instance = pygad.GA(fitness_func=fitness_func, gene_space=gene_space, num_generations=num_generations,
                            num_parents_mating=num_parents_mating, sol_per_pop=sol_per_pop, num_genes=num_genes,

@@ -109,11 +109,8 @@ def returns_from_prices(prices):
 
 
 if __name__ == '__main__':
-    x = np.array([[1, 2, 3, 4, 5]]*5)
-    zeros = np.zeros((x.shape[0], 1))
-    x = np.hstack((zeros, x))
-
-    mas = moving_averages(x, np.array([1, 3]))
+    data = get_securities_data(['AMZN'])
+    print(data['AMZN'][1:])
 
 
 

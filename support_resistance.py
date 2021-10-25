@@ -26,7 +26,7 @@ highs.plot(ax=ax1, color='c')
 lows.plot(ax=ax1, color='y')
 plt.hlines(resistance, highs.index.values[0], highs.index.values[-1], color='g')
 plt.hlines(support, lows.index.values[0], lows.index.values[-1], color='r')
-plt.axvline(linewidth=2, color='b', x=lows.index.values[200], linestyle=':')
+plt.axvline(linewidth=2, color='n', x=lows.index.values[200], linestyle=':')
 plt.show()
 
 
@@ -38,7 +38,7 @@ def support_resistance_trading(data, window_size=50, tolerance=0.2, count_limit=
     data['support_count'] = 0
     data['resistance_count'] = 0
     data['position'] = 0
-    data['signal'] = 0
+    data['signal_arr'] = 0
     data.fillna(0)
     for i in range(window_size, len(data)):
         data_section = data[i - window_size:i]
@@ -57,12 +57,12 @@ def support_resistance_trading(data, window_size=50, tolerance=0.2, count_limit=
         invested = data['position'][i-1] > 0
         #print(invested)
         if data['support_count'][i] >= count_limit and not invested:
-            data['signal'][i] = 1
+            data['signal_arr'][i] = 1
         elif data['resistance_count'][i] >= count_limit and invested:
-            data['signal'][i] = -1
+            data['signal_arr'][i] = -1
 
-        data['position'][i] = (data['position'][i-1] or 0) + data['signal'][i] * data['price'][i]
-        #print(data['signal'][i],  data['position'][i])
+        data['position'][i] = (data['position'][i-1] or 0) + data['signal_arr'][i] * data['price'][i]
+        #print(data['signal_arr'][i],  data['position'][i])
 
     return data
 

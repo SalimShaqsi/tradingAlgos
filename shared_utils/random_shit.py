@@ -187,10 +187,10 @@ def is_pareto_efficient(costs, return_mask=True):
     """
     Find the pareto-efficient points
     :param costs: An (n_points, n_costs) array
-    :param return_mask: True to return a mask
+    :param return_mask: True to return x mask
     :return: An array of indices of pareto-efficient points.
         If return_mask is True, this will be an (n_points, ) boolean array
-        Otherwise it will be a (n_efficient_points, ) integer array of indices.
+        Otherwise it will be x (n_efficient_points, ) integer array of indices.
     """
     is_efficient = np.arange(costs.shape[0])
     n_points = costs.shape[0]

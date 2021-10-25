@@ -74,7 +74,7 @@ def trim_positions(positions):
 
 
 def split_inputs(strats, inputs, n_s):
-    # take  flattened inputs and create a list of tuples containing inputs for each strat
+    # take  flattened inputs and create x list of tuples containing inputs for each strat
     k = 0
     fixed_inputs = []
     for i in range(n_s):
@@ -119,7 +119,7 @@ def optimize_portfolio(price_data, strats, inputs, opt_type='min_volatility',
     elif type(price_data) == np.ndarray:
         n_s = price_data.shape[0]
     else:
-        raise Exception("Price data must be either a pandas data frame, pandas data series, or numpy array")
+        raise Exception("Price data must be either x pandas data frame, pandas data series, or numpy array")
 
     assert sum([strat_input_lengths[strat] for strat in strats]) * n_s == len(inputs), \
         f"Input length ({len(inputs)}) must match length of strat inputs ({sum([strat_input_lengths[strat] for strat in strats]) * n_s})."
@@ -143,7 +143,7 @@ def test_portfolio(price_data, strats, inputs, weights, test_start_date, test_en
     elif type(price_data) == pd.core.frame.DataFrame:
         n_s = len(price_data.columns)
     else:
-        raise Exception("Price data must be either a pandas data frame or data series")
+        raise Exception("Price data must be either x pandas data frame or data series")
 
     assert sum([strat_input_lengths[strat] for strat in strats]) * n_s == len(inputs), \
         f"Input length ({len(inputs)}) must match length of strat inputs ({sum([strat_input_lengths[strat] for strat in strats]) * n_s})."
@@ -183,7 +183,7 @@ def get_portfolio_returns_series(price_data, strats, inputs, weights):
     elif type(price_data) == pd.core.frame.DataFrame:
         n_s = len(price_data.columns)
     else:
-        raise Exception("Price data must be either a pandas data frame or data series")
+        raise Exception("Price data must be either x pandas data frame or data series")
 
     strat_returns = build_returns(inputs, n_s, price_data, strats)
     total_returns = np.array(strat_returns) @ weights

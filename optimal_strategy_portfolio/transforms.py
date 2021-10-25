@@ -7,10 +7,10 @@ default_bounds = np.array([-1, 1])
 
 
 @njit
-def signal_to_positions(signal, lower_bound=0, upper_bound=1):
+def signal_to_positions(signal_arr, lower_bound=0, upper_bound=1):
     p = 0
-    positions = np.zeros(len(signal))
-    for i, s in enumerate(signal):
+    positions = np.zeros(len(signal_arr))
+    for i, s in enumerate(signal_arr):
         if s == 1 and p <= 0:
             positions[i] = p = upper_bound
         elif s == -1 and p >= 0:
