@@ -2,12 +2,13 @@ import unittest
 
 import numpy as np
 
-from optimal_strategy_portfolio.signals.price_signals import RSISignal
-from optimal_strategy_portfolio.single_strategy_optimizer import SingleStrategyOptimizer
+from optimal_strategy_portfolio.metrics import sharpe
+from optimal_strategy_portfolio.signals.price_signals import RSISignal, PMA
+from optimal_strategy_portfolio.single_strategy_optimizers import SingleStrategyOptimizer
 from optimal_strategy_portfolio.solver_wrappers import pygad_wrapper
 from optimal_strategy_portfolio.strategies import PriceMovingAverageCrossover, Strategy
 from optimal_strategy_portfolio.strategy_portforlios import StrategyPortfolio
-from shared_utils.data import get_data, get_securities_data
+from shared_utils.data import get_data, get_securities_data, set_universe
 
 
 class TestStrategyPortfolios(unittest.TestCase):
@@ -28,13 +29,21 @@ class TestStrategyPortfolios(unittest.TestCase):
         self.assertEqual(portfolio.n_args, sum([strat.n_args for strat in strats]))
         self.assertEqual(portfolio.trimmed_length, min(strat.trimmed_length for strat in strats))
 
-        returns_matrix = portfolio.execute(np.array([50, 200]*len(self.symbols)))
+        returns_matrix = portfolio.execute(np.array([50, 200]*len(strats)))
         returns_matrix_test = np.array([strat.execute(50, 200)[-portfolio.trimmed_length:] for strat in strats])
 
         self.assertEqual(returns_matrix.shape, (len(strats), strats[0].trimmed_length))
 
         self.assertTrue(np.array_equal(
             returns_matrix, returns_matrix_test
+        ))
+
+        weights = np.ones(len(strats)) / len(strats)
+        r = portfolio.execute_with_weights(np.array([50, 200] * len(strats)), weights)
+
+        self.assertTrue(np.array_equal(
+            r,
+            weights @ returns_matrix
         ))
 
     def test_linked_strategies(self):
@@ -93,7 +102,7 @@ class TestStrategyPortfolios(unittest.TestCase):
         self.assertEqual(port1._reshape_args([20, 200, 30, 300, 50]), [[20, 200], [30, 300], [50]])
 
         self.assertTrue(np.array_equal(
-            port1.execute([20, 200, 20, 300, 50]),
+            port1.execute([20, 200, 30, 300, 50]),
             np.array([strat1.execute(20, 200)[-port1.trimmed_length:],
                       strat2.execute(30, 300)[-port1.trimmed_length:],
                       strat3.execute(50)][-port1.trimmed_length:])
@@ -152,3 +161,30 @@ class TestStrategyPortfolios(unittest.TestCase):
         self.assertEqual(port.reshaped_args,
                          [[0] * strat1.n_args, [0] * strat3.n_args, [0] * strat2.n_args, [0] * strat4.n_args])
         self.assertEqual(port._reshape_args([20, 200, 50]), [[20, 200], [20, 200], [50], [50]])
+
+    def test_portfolio_test(self):
+        set_universe(self.symbols, test_start_date='2019-01-01')
+
+        fast_mas = [PMA(symb) for symb in self.symbols]
+        slow_mas = [PMA(symb) for symb in self.symbols]
+
+        signals = [(fast > slow) - (slow > fast) for fast, slow in zip(fast_mas, slow_mas)]
+
+        strats = [signal.to_strategy() for signal in signals]
+
+        portfolio = StrategyPortfolio(strats)
+
+        self.assertIsInstance(portfolio.test_instance, StrategyPortfolio)
+
+        self.assertTrue(np.array_equal(
+            portfolio.test([50, 200] * len(self.symbols)),
+            np.array([strat.test(*[50, 200]) for strat in strats])
+        ))
+
+        portfolio = StrategyPortfolio([strats])
+
+        self.assertTrue(np.array_equal(
+            portfolio.test([50, 200]),
+            np.array([strat.test(*[50, 200]) for strat in strats])
+        ))
+

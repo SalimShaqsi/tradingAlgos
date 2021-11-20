@@ -93,14 +93,14 @@ def build_returns(inputs, n_s, price_data, strats, keep_index=False):
         s = price_data[p] if type(price_data) in (pd.DataFrame, pd.Series) else p
         positions = [strat(*[s] + args) for strat, args in zip(strats, inputs)]
         positions = trim_positions(positions)
-        #unique_positions = np.unique(positions, axis=0, return_index=True)  # remove duplicate position signals
+        #unique_positions = np.unique(positions, axis=0, return_index=True)  # remove duplicate position signal
         positions = positions
         s_cut = np.array(s[-positions.shape[1]:])
         returns += returns_from_positions(s_cut, positions)
     returns = trim_positions(returns)
     if keep_index:
         returns = pd.DataFrame(np.transpose(returns),
-                               index=s.index[-returns.shape[1]:])
+                               index=s.price_index[-returns.shape[1]:])
     else:
         returns = pd.DataFrame(np.transpose(returns))
     return returns

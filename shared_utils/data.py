@@ -8,7 +8,28 @@ from scipy.signal import lfilter
 from scipy.ndimage.filters import uniform_filter1d
 
 from os.path import join, dirname
+from datetime import datetime, timedelta
+
+
+yesterday = datetime.now() - timedelta(days=1)
+yesterday_str = yesterday.strftime('%Y-%m-%d')
 dir = dirname(__file__)
+universe = dict()
+
+
+def set_universe(symbols, start_date='2014-01-01', end_date=yesterday_str, test_start_date=None):
+    universe.clear()
+    data = get_securities_data(symbols, start_date=start_date, end_date=end_date)
+    universe.update({'HAS_TEST_DATA': test_start_date is not None})
+    if test_start_date:
+        train_data = {f'{symb}': d[:test_start_date] for symb, d in data.items()}
+        test_data = {f'{symb}_TEST': d for symb, d in data.items()}
+        test_data_for_returns = {f'{symb}_TEST_R': d[test_start_date:] for symb, d in data.items()}
+        universe.update(train_data)
+        universe.update(test_data)
+        universe.update(test_data_for_returns)
+    else:
+        universe.update(data)
 
 
 def get_data(symbols, start_date='2014-01-01', end_date='2020-01-01'):
@@ -109,8 +130,10 @@ def returns_from_prices(prices):
 
 
 if __name__ == '__main__':
-    data = get_securities_data(['AMZN'])
-    print(data['AMZN'][1:])
+    symbs = ['GOOG', 'FB', 'AMZN', "MSFT", 'TSLA']
+    set_universe(symbs)
+
+    print(universe['GOOG'])
 
 
 

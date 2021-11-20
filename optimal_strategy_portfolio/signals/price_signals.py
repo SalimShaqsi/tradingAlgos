@@ -1,19 +1,31 @@
+from functools import cache
 from timeit import timeit
+from typing import Union
 
 import numpy as np
 import pandas as pd
 
 from optimal_strategy_portfolio.signals import Signal
-from shared_utils.data import moving_average4, get_data, get_securities_data
+from shared_utils.data import moving_average4, get_data, get_securities_data, returns_from_prices, universe, \
+    set_universe
 from optimal_strategy_portfolio.indicators import moving_average, moving_averages, ema, rsi
 
 
 class PriceSignal(Signal):
     is_array = True
-    lag = 2
+    lag = 2  # this is set to 2 because we can only react to close data the following day
 
-    def __init__(self, price_data: pd.DataFrame):
-        assert type(price_data) == pd.DataFrame, "Price data should be provided as a Pandas DataFrame"
+    def __init__(self, price_data: Union[pd.DataFrame, str], name='price', bounds=(), arg_types=()):
+        super(PriceSignal, self).__init__(name=name, bounds=bounds, arg_types=arg_types)
+        assert type(price_data) in [pd.DataFrame, str], \
+            "Price data should be provided as a Pandas DataFrame or a string referencing a security in the " \
+            "securities universe"
+        if type(price_data) == str:
+            symb = price_data
+            self.name = f'{symb}_{self.name}'
+            price_data = universe[symb]
+            if universe['HAS_TEST_DATA'] and '_TEST' not in symb:
+                self.test_instance = self.__class__(f'{symb}_TEST', name=name)
         self.price_data = price_data
         self.prices = price_data['Adj Close'].to_numpy()
         self.highs = price_data['High'].to_numpy()
@@ -22,9 +34,9 @@ class PriceSignal(Signal):
         self.volume = price_data['Volume'].to_numpy()
         self.close = price_data['Close'].to_numpy()
         self.index = price_data.index
-        self.n_t = len(self.prices)  # last data point is dropped
+        self.n_t = len(self.prices)
 
-    def transform(self, *args):
+    def transform(self, **kwargs):
         return self.prices
 
 
@@ -32,11 +44,12 @@ class PriceMASignal(PriceSignal):
     n_args = 1
     is_array = True
 
-    def __init__(self, price_data, lower_ma_bound=1, upper_ma_bound=300):
-        super().__init__(price_data)
-        self.n_t = self.n_t - upper_ma_bound
+    def __init__(self, price_data, bounds=((1, 300),), name='price_sma'):
+        super().__init__(price_data, name=name, bounds=bounds, arg_types=(int,))
+        self.n_t = self.n_t - bounds[0][1]
 
-    def transform(self, window_size):
+    @cache
+    def transform(self, window_size, **kwargs):
         return moving_average4(self.prices, window_size)
 
 
@@ -44,11 +57,12 @@ class PriceEMASignal(PriceSignal):
     n_args = 1
     is_array = True
 
-    def __init__(self, price_data, lower_ma_bound=1, upper_ma_bound=300):
-        super().__init__(price_data)
-        self.n_t = self.n_t - upper_ma_bound
+    def __init__(self, price_data, bounds=((1, 300),), name='price_ema'):
+        super().__init__(price_data, name=name, bounds=bounds, arg_types=(int,))
+        self.n_t = self.n_t - bounds[0][1]
 
-    def transform(self, window_size):
+    @cache
+    def transform(self, window_size, **kwargs):
         return ema(self.prices, window_size)
 
 
@@ -56,42 +70,50 @@ class RSISignal(PriceSignal):
     n_args = 1
     is_array = True
 
-    def __init__(self, price_data, lower_ma_bound=1, upper_ma_bound=300):
-        super().__init__(price_data)
-        self.n_t = self.n_t - upper_ma_bound
+    def __init__(self, price_data, bounds=((2, 300),), name='rsi'):
+        super().__init__(price_data, name=name, bounds=bounds, arg_types=(int,))
+        self.n_t = self.n_t - bounds[0][1]
 
-    def transform(self, window_size):
+    @cache
+    def transform(self, window_size, **kwargs):
         return rsi(self.prices, window_size)
 
 
+class ReturnsSignal(PriceSignal):
+    def __init__(self, price_data, name='returns'):
+        super().__init__(price_data, name=name)
+        self.returns = returns_from_prices(self.prices)
+        self.n_t = len(self.returns)
+
+    def transform(self, *args, **kwargs):
+        return self.returns
+
+
+class VolumeSignal(PriceSignal):
+    def __init__(self, price_data, name='volume'):
+        super().__init__(price_data, name=name)
+        self.n_t = len(self.volume)
+
+    def transform(self, *args, **kwargs):
+        return self.volume
+
+
+Price = P = PriceSignal
+PriceSMA = PriceMA = PMA = PSMA = PriceMASignal
+PriceEMA = PEMA = PriceEMASignal
+Returns = R = ReturnsSignal
+Volume = V = VolumeSignal
+RSI = RSISignal
+
+
 if __name__ == '__main__':
-    prices = get_securities_data(['AMZN'])['AMZN']
+    symbols = ['GOOG', 'FB', "TSLA", "AMZN"]
+    set_universe(symbols)
+    fast_pmas = [PMA(symb) for symb in symbols]
+    slow_pmas = [PMA(symb) for symb in symbols]
+    signals = [(fast > slow) - (slow > fast) for fast, slow in zip(fast_pmas, slow_pmas)]
+    strats = [s.to_strategy() for s in signals]
 
-    fast_ma, slow_ma = PriceMASignal(prices), PriceMASignal(prices)
-
-    signal = (fast_ma > slow_ma) - (slow_ma > fast_ma)
-
-    t1 = timeit('signal(20,200)', number=100_000, globals=globals())
-    s = """
-slow = fast_ma(200)
-l = len(slow)
-fast = fast_ma(20)[-l:]
-(fast > slow) * 1 + (slow > fast) * -1
-    """
-    t2 = timeit(s, number=100_000, globals=globals())
-
-    print(t1 / t2)
-
-    cols = {'High', "Low", "Open", "Close", "Volume", "Adj Close"}
-    data = pd.DataFrame({col: np.random.random(1_000_000) for col in cols})
-
-    fast_ma, slow_ma = PriceMASignal(data), PriceMASignal(data)
-
-    signal2 = (fast_ma > slow_ma) - (slow_ma > fast_ma)
-
-    strat = signal2.to_strategy()
-
-    t3 = timeit('strat.execute(20,200)', number=1, globals=globals())
 
 
 

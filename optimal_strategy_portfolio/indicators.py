@@ -12,6 +12,12 @@ def moving_average(x, n):
 
 
 @njit
+def moving_average2(x, n):
+    cumsum = np.cumsum(np.append(0, x))
+    return (cumsum[n:] - cumsum[:-n]) / n
+
+
+@njit
 def moving_averages(data, bounds):
     zeros = np.zeros((data.shape[0], 1))
     data = np.hstack((zeros, data))
@@ -128,10 +134,5 @@ def rsi(a, b):
 
 
 if __name__ == '__main__':
-    high = np.random.random(10_000)
-    low = np.random.random(10_000)
-    open = np.random.random(10_000)
-    close = np.random.random(10_000)
-    volume = np.random.random(10_000)
-
-    s = rsi(close, 20)
+    a = np.random.random(2_000)
+    print(rsi(a, 20), rsi(a, 50))

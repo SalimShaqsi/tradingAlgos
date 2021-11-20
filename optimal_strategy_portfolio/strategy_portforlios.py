@@ -8,7 +8,7 @@ from shared_utils.data import get_securities_data
 
 
 class StrategyPortfolio(object):
-    def __init__(self, strat_structure, trimmed_length=None):
+    def __init__(self, strat_structure: [list, tuple, np.ndarray], trimmed_length: int = None):
         self.strat_structure = strat_structure
         self.arg_structure = []
         self._check_structure()
@@ -17,11 +17,23 @@ class StrategyPortfolio(object):
         self._init_arg_structure()
         self.trimmed_length = trimmed_length or min([strat.trimmed_length for strat in self.strats])
         self.returns = np.zeros(self.trimmed_length)
+        self.bounds = ()
+        self.arg_types = ()
+        self.arg_names = ()
+        for strats in self.strat_structure:
+            self.bounds += strats[0].bounds
+            self.arg_types += strats[0].arg_types
+
+        if all([hasattr(strat, 'test_instance') for strat in self.strats]):
+            test_structure = []
+            for strats in self.strat_structure:
+                test_structure += [[strat.test_instance for strat in strats]]
+            self.test_instance = self.__class__(test_structure)
 
     def _check_structure(self):
         if type(self.strat_structure) not in [list, np.ndarray]:
             raise TypeError("Strat structure must either be sequences containing "
-                                "strategies or sequences of strategies")
+                            "strategies or sequences of strategies")
 
         for s in self.strat_structure:
             if type(s) not in [list, np.ndarray] and not isinstance(s, Strategy):
@@ -47,7 +59,7 @@ class StrategyPortfolio(object):
                 self.reshaped_args += [args[k:k + n_args]]
             k += n_args
 
-    def _reshape_args(self, args):
+    def _reshape_args(self, args: [list, tuple, np.ndarray]):
         j = 0
         k = 0
         for n_args, n in self.arg_structure:
@@ -58,7 +70,7 @@ class StrategyPortfolio(object):
 
         return self.reshaped_args
 
-    def _reshape_args_old(self, args):
+    def _reshape_args_old(self, args: [list, tuple, np.ndarray]):
         k = 0
         if not self.reshaped_args:
             for strats in self.strat_structure:
@@ -75,15 +87,39 @@ class StrategyPortfolio(object):
 
         return self.reshaped_args
 
-    def execute(self, args):
+    def execute(self, args: [list, tuple, np.ndarray]):
         reshaped_args = self._reshape_args(args)
         return np.array([strat.execute(*x)[-self.trimmed_length:] for strat, x in zip(self.strats, reshaped_args)])
+
+    def test(self, args):
+        portfolio = self.test_instance if hasattr(self, 'test_instance') else self
+        if not args and self.optimization_results:
+            self.test_results = portfolio.execute(self.optimization_results[0])
+            return self
+        else:
+            return portfolio.execute(args)
+
+    def execute_with_weights(self, args: [list, tuple, np.ndarray], weights: np.ndarray):
+        reshaped_args = self._reshape_args(args)
+        return weights @ np.array(
+            [strat.execute(*x)[-self.trimmed_length:] for strat, x in zip(self.strats, reshaped_args)])
+
+    def test_with_weight(self, args: [list, tuple, np.ndarray], weights: np.ndarray):
+        return self.test_instance.execute_with_weights(args, weights)
 
     def __add__(self, other):
         if isinstance(other, Strategy):
             return StrategyPortfolio(self.strat_structure + [[other]])
         elif isinstance(other, StrategyPortfolio):
             return StrategyPortfolio(self.strat_structure + other.strat_structure)
+        else:
+            raise TypeError(f"+ operator with type {type(other)} is not supported")
+
+    def __radd__(self, other):
+        if isinstance(other, Strategy):
+            return StrategyPortfolio([[other]] + self.strat_structure)
+        elif isinstance(other, StrategyPortfolio):
+            return StrategyPortfolio(other.strat_structure + self.strat_structure)
         else:
             raise TypeError(f"+ operator with type {type(other)} is not supported")
 

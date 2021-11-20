@@ -24,9 +24,9 @@ fig = plt.figure()
 ax1 = fig.add_subplot(111, ylabel='Google prices in $')
 highs.plot(ax=ax1, color='c')
 lows.plot(ax=ax1, color='y')
-plt.hlines(resistance, highs.index.values[0], highs.index.values[-1], color='g')
-plt.hlines(support, lows.index.values[0], lows.index.values[-1], color='r')
-plt.axvline(linewidth=2, color='n', x=lows.index.values[200], linestyle=':')
+plt.hlines(resistance, highs.price_index.values[0], highs.price_index.values[-1], color='g')
+plt.hlines(support, lows.price_index.values[0], lows.price_index.values[-1], color='r')
+plt.axvline(linewidth=2, color='n', x=lows.price_index.values[200], linestyle=':')
 plt.show()
 
 
@@ -68,11 +68,11 @@ def support_resistance_trading(data, window_size=50, tolerance=0.2, count_limit=
 
 goog_data['price'] = goog_data['Adj Close']
 data = support_resistance_trading(goog_data, window_size=10, tolerance=0.3, count_limit=2)
-data['cash'] = 1000 - data['position']
-data['cash'].plot()
+data['avg_cash'] = 1000 - data['position']
+data['avg_cash'].plot()
 data['position'].plot()
 plt.show()
 
-r = (data['cash'][-1] - data['cash'][0]) / data['cash'][0]
+r = (data['avg_cash'][-1] - data['avg_cash'][0]) / data['avg_cash'][0]
 baseline_r = (data['price'][-1] - data['price'][0]) / data['price'][0]
 print(baseline_r, r)

@@ -30,8 +30,15 @@ def pygad_wrapper(func, bounds, num_generations=200, num_parents_mating=4, sol_p
     gene_space = [{'low': b[0], 'high': b[1]} for b in bounds]
     num_genes = len(gene_space)
 
+    gene_type = kwargs.get('gene_type', None)
+
+    if gene_type and type(gene_type) in (tuple, list, np.ndarray):
+        for g, t in zip(gene_space, gene_type):
+            if t in {int, np.int}:
+                g['high'] += 1
+
     def fitness_func(solution, solution_idx):
-        return -func(solution)  # '-' because pygad GA is x maximizer
+        return -func(solution)  # '-' because pygad GA is a maximizer
 
     ga_instance = pygad.GA(fitness_func=fitness_func, gene_space=gene_space, num_generations=num_generations,
                            num_parents_mating=num_parents_mating, sol_per_pop=sol_per_pop, num_genes=num_genes,
